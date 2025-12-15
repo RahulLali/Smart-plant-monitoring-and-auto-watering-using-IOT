@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Smart Plant Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0f1724;
+      --card:#0b1220;
+      --muted:#9aa7bd;
+      --accent:#22c55e; /* green */
+      --accent-2:#06b6d4; /* cyan */
+      --glass: rgba(255,255,255,0.03);
+      --card-radius:14px;
+    }
+
+    /* Prevent accidental horizontal overflow */
+    html, body {
+      height: 100%;
+      margin: 0;
+      overflow-x: hidden;
+      box-sizing: border-box;
+      background: linear-gradient(180deg,#071024 0%, #0f1724 100%);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: #e6eef8;
+    }
+
+    .app {
+      max-width:1100px;
+      margin:28px auto;
+      padding:22px;
+      box-sizing:border-box;
+    }
+
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .brand {display:flex;align-items:center;gap:12px}
+    .logo {
+      width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      display:flex;align-items:center;justify-content:center;font-weight:700;color:#001218;box-shadow:0 6px 18px rgba(2,6,23,0.6)
+    }
+    h1{margin:0;font-size:20px}
+    .sub{color:var(--muted);font-size:13px}
+
+    .grid {
+      display:grid;grid-template-columns: 1fr 360px;gap:18px;
+      align-items:start;
+    }
+
+    .panel {background:var(--card);border-radius:var(--card-radius);padding:18px;box-shadow:0 6px 20px rgba(2,6,23,0.6);box-sizing:border-box}
+    .sensors-grid {display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+    .card {
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:12px;padding:14px;color:#dff0e6;min-width:0; /* allow shrink */
+    }
+    .metric {font-size:12px;color:var(--muted)}
+    .value {font-size:22px;font-weight:700;margin-top:6px}
+
+    .chart-area {height:200px;border-radius:10px;background:var(--glass);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px}
+
+    .controls {display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+    .btn {
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.04);padding:10px 12px;border-radius:10px;color:#e6eef8;cursor:pointer;font-weight:600;
+    }
+    .btn.primary {background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#002018}
+    .tog {display:flex;align-items:center;gap:8px;color:var(--muted)}
+
+    .side {display:flex;flex-direction:column;gap:12px}
+    .upload-box {display:flex;flex-direction:column;gap:8px;align-items:center;padding:14px;border-radius:12px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));text-align:center}
+    .upload-box input[type="file"]{display:block}
+    /* responsive preview */
+    .preview {
+      width: 100%;
+      max-width: 320px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      margin: 12px auto;
+      box-sizing: border-box;
+      border-radius: 6px;
+      background: #06121a;
+      padding: 6px;
+    }
+    /* result pill - constrain width and allow wrapping */
+    .result {
+      display: inline-block;
+      max-width: calc(100% - 32px);
+      width: auto;
+      white-space: normal;
+      word-wrap: break-word;
+      word-break: break-word;
+      padding: 12px 18px;
+      border-radius: 18px;
+      text-align: center;
+      box-sizing: border-box;
+      background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(255,255,255,0.02));
+      font-weight: 700;
+      margin-top: 12px;
+      color: #fff;
+    }
+    .result h2, .result strong {
+      font-size: clamp(16px, 2.4vw, 22px);
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    .log {padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);color:var(--muted);font-family:monospace;font-size:13px;height:200px;overflow:auto}
+    footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+
+    /* Important: make flex/grid children shrinkable to avoid overflow */
+    .grid > * { min-width: 0; }
+    .sensors-grid > * { min-width: 0; }
+
+    @media(max-width:980px){
+      .grid{grid-template-columns:1fr; }
+      .sensors-grid{grid-template-columns:repeat(2,1fr)}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">SP</div>
+        <div>
+          <h1>Smart Plant Dashboard</h1>
+          <div class="sub">Live sensors • Auto-watering • Leaf health</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="sub">Status: <span id="connStatus" style="color:#9ee6b8;margin-left:6px">connecting...</span></div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: main -->
+      <div>
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <div style="font-weight:700">Sensors</div>
+            <div style="color:var(--muted);font-size:13px">Updated every 1s</div>
+          </div>
+
+          <div class="sensors-grid">
+            <div class="card">
+              <div class="metric">Air (MQ-135)</div>
+              <div class="value" id="mq">—</div>
+            </div>
+            <div class="card">
+              <div class="metric">Soil moisture</div>
+              <div class="value" id="soil">—</div>
+            </div>
+            <div class="card">
+              <div class="metric">Temperature</div>
+              <div class="value" id="temp">—</div>
+            </div>
+            <div class="card">
+              <div class="metric">Humidity</div>
+              <div class="value" id="hum">—</div>
+            </div>
+            <div class="card">
+              <div class="metric">Pump</div>
+              <div class="value" id="relay">—</div>
+            </div>
+            <div class="card">
+              <div class="metric">Auto Mode</div>
+              <div class="value" id="autoMode">—</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;align-items:center;justify-content:space-between">
+            <div class="controls">
+              <button class="btn primary" id="pumpOnBtn">Pump ON</button>
+              <button class="btn" id="pumpOffBtn">Pump OFF</button>
+              <button class="btn" id="clearManualBtn">Clear Manual</button>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:12px">
+              <div class="tog">
+                <label style="font-size:13px;margin-right:8px;color:var(--muted)">Auto</label>
+                <input id="autoCheckbox" type="checkbox" />
+              </div>
+              <div style="color:var(--muted);font-size:12px">Last: <span id="lastUpdate">—</span></div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <div class="chart-area" id="chartArea">Live readings</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: prediction + logs -->
+      <div class="side">
+        <div class="upload-box panel">
+          <div style="font-weight:700">Leaf Health Check</div>
+          <div style="font-size:13px;color:var(--muted)">Upload a leaf image to check for disease</div>
+          <input type="file" id="file" accept="image/*" />
+          <img id="preview" class="preview" src="" alt="preview" />
+          <div class="result" id="predictResult">No prediction yet</div>
+          <button class="btn" id="predictBtn" style="margin-top:8px">Analyze</button>
+        </div>
+
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+            <div style="font-weight:700">Live Log</div>
+            <div style="color:var(--muted);font-size:13px">Raw serial / debug</div>
+          </div>
+          <div class="log" id="logArea">Waiting for data...</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Built for BE major project • Dashboard demo</footer>
+  </div>
+
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script>
+    const socket = io({
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5
+    });
+
+    const connStatus = document.getElementById('connStatus');
+    const mqEl = document.getElementById('mq');
+    const soilEl = document.getElementById('soil');
+    const tempEl = document.getElementById('temp');
+    const humEl = document.getElementById('hum');
+    const relayEl = document.getElementById('relay');
+    const logArea = document.getElementById('logArea');
+    const lastUpdate = document.getElementById('lastUpdate');
+    const autoCheckbox = document.getElementById('autoCheckbox');
+    const autoModeEl = document.getElementById('autoMode');
+    const preview = document.getElementById('preview');
+    const resultBox = document.getElementById('predictResult');
+
+    function addLog(text) {
+      const t = document.createElement('div');
+      t.textContent = '[' + new Date().toLocaleTimeString() + '] ' + text;
+      logArea.prepend(t);
+      if (logArea.children.length > 150) logArea.removeChild(logArea.lastChild);
+    }
+
+    socket.on('connect', () => {
+      connStatus.textContent = 'connected';
+      connStatus.style.color = '#9ee6b8';
+      addLog('Socket connected: ' + socket.id);
+    });
+    socket.on('disconnect', (reason) => {
+      connStatus.textContent = 'disconnected';
+      connStatus.style.color = '#fca5a5';
+      addLog('Socket disconnected: ' + reason);
+    });
+    socket.on('connect_error', (err) => {
+      connStatus.textContent = 'connect_error';
+      connStatus.style.color = '#fca5a5';
+      addLog('Connect error: ' + JSON.stringify(err));
+    });
+
+    socket.on('sensor_update', (data) => {
+      if (!data) return;
+      if ('mq' in data) mqEl.textContent = data.mq;
+      if ('soil' in data) soilEl.textContent = data.soil + '%';
+      if ('temp' in data) tempEl.textContent = data.temp + '°C';
+      if ('hum' in data) humEl.textContent = data.hum + '%';
+      if ('relay' in data) relayEl.textContent = data.relay ? 'ON' : 'OFF';
+      lastUpdate.textContent = new Date().toLocaleTimeString();
+      addLog('sensor_update: ' + JSON.stringify(data));
+    });
+
+    socket.on('serial_line', (o) => {
+      addLog('RAW: ' + (o.line || JSON.stringify(o)));
+    });
+
+    socket.on('relay_ack', (o) => {
+      addLog('relay_ack: ' + JSON.stringify(o));
+    });
+    socket.on('auto_ack', (o) => {
+      addLog('auto_ack: ' + JSON.stringify(o));
+      if (o.sent !== undefined) {
+        autoCheckbox.checked = !!o.sent;
+        autoModeEl.textContent = o.sent ? 'ON' : 'OFF';
+      }
+    });
+    socket.on('manual_cleared', (o) => {
+      addLog('manual_cleared: ' + JSON.stringify(o));
+    });
+
+    // Pump buttons
+    document.getElementById('pumpOnBtn').addEventListener('click', () => {
+      socket.emit('toggle_relay', {state:1});
+      addLog('Sent RELAY:1');
+    });
+    document.getElementById('pumpOffBtn').addEventListener('click', () => {
+      socket.emit('toggle_relay', {state:0});
+      addLog('Sent RELAY:0');
+    });
+
+    // Clear manual override
+    document.getElementById('clearManualBtn').addEventListener('click', () => {
+      socket.emit('clear_manual');
+      addLog('Sent MANUAL:0 (clear manual override)');
+    });
+
+    // Auto toggle control
+    autoCheckbox.addEventListener('change', (e) => {
+      const state = e.target.checked ? 1 : 0;
+      socket.emit('set_auto', {state: state});
+      addLog('Requested AUTO:' + state);
+    });
+
+    // Prediction (file upload)
+    const fileInput = document.getElementById('file');
+    const predictBtn = document.getElementById('predictBtn');
+
+    fileInput.addEventListener('change', (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => preview.src = e.target.result;
+      reader.readAsDataURL(file);
+    });
+
+    predictBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('Choose an image first');
+        return;
+      }
+      resultBox.textContent = 'Uploading...';
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/predict', { method: 'POST', body: fd });
+        const j = await res.json();
+        if (res.ok) {
+          const text = `${j.label} (confidence ${(j.confidence*100).toFixed(1)}%)`;
+          // use textContent so long words wrap according to CSS
+          resultBox.textContent = text;
+          addLog('Prediction: ' + JSON.stringify(j));
+        } else {
+          resultBox.textContent = 'Error: ' + (j.error || 'unknown');
+          addLog('Predict error: ' + JSON.stringify(j));
+        }
+      } catch (err) {
+        resultBox.textContent = 'Upload error';
+        addLog('Upload error: ' + err.message);
+      }
+    });
+
+  </script>
+</body>
+</html>
